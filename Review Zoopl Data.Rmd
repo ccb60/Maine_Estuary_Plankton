@@ -1,0 +1,329 @@
+---
+title: "Examining Zooplankton Data File"
+output:
+  github_document:
+    toc: true
+    fig_width: 5
+    fig_height: 4
+---
+<img
+    src="https://www.cascobayestuary.org/wp-content/uploads/2014/04/logo_sm.jpg"
+    style="position:absolute;top:10px;right:50px;" />
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align = 'center',
+                      fig.width = 5, fig.height = 4,
+                      collapse = TRUE, comment = "#>")
+```
+
+#Introduction
+In this notebook, I am reviewing data in one of the two data files I was 
+provided.  Principally , this is to get familiar with the contents of the file, 
+but it is also to check the relationship among tabs.
+
+#Load Libraries
+```{r}
+library(tidyverse)
+library(readxl)
+
+library(GGally)
+
+library(emmeans)
+
+theme_set(theme_minimal())
+```
+
+# Data Tabs in the Excel File
+The data in the excel file is divided among many tabs, not all laid out the same way.
+```{r}
+fn <- 'Seanet ALL DATA FIlE.xlsx'
+
+(tabs <- excel_sheets(fn))
+```
+
+# Environmental Data
+```{r}
+enviro_data <- read_excel("Seanet ALL DATA FILE.xlsx", 
+    sheet = "Phyto_Enviromental", range = "a1:an53") %>%
+  rename_with(.fn = ~sub(" *$", "", .x) ) %>%
+  rename_with(.fn = ~gsub(" ", "_", .x)) %>%
+  select(-c(riv_km:tide_height)) %>%
+  mutate(mock_id = paste0('SNT_',date, '_', bigelow_id )) %>%
+  relocate(mock_id)
+```
+
+## Site Locations
+Note that RAM and WOOD are recorded with multiple different latitude and 
+longitude values.
+
+The last pair of RAM and Wood site records give different latitudes and 
+longitudes. 
+
+```{r}
+cbind(enviro_data$latitude_decdeg[enviro_data$ID == 'RAM'],
+      enviro_data$longitude_decdeg[enviro_data$ID == 'RAM'])
+```
+
+That last value matches the usual location for the "Wood" sampling site.
+
+```{r}
+cbind(enviro_data$latitude_decdeg[enviro_data$ID == 'Wood'],
+      enviro_data$longitude_decdeg[enviro_data$ID == 'Wood'])
+
+```
+
+The last "Wood" Lat Long data actually matches the "3/4 Buoy" location.
+
+That suggests an alignment problem in Excel.Specifically, I expect it's a copy
+error for those two samples ONLY. Since none of the other lats and longs fail to
+match, it's probably just those two, but it calls into question the alignment 
+on the rest of the data sheet.
+
+## Environmental Variables
+
+It'snot a t all lear what the source of al lthese environmental variables are.
+It looks like some are raw observations (sst, salinity, secchi_depth), while
+most are derived statistics, presumably from sonde downcasts.
+
+### Temperature variables
+```{r}
+t_data <- enviro_data %>%
+  select(ID, date, sst, contains('temp')) %>%
+  mutate(across(ave_temp_c:max.temp, as.numeric)) %>%
+  pivot_longer(sst:temp.gradient, names_to = 'type', values_to = 'value') %>%
+  filter(! is.na(value))
+```
+
+```{r fig.width = 7, fig.height = 5}
+t_data %>%
+  filter(type != 'temp.gradient') %>%
+
+ggplot(aes(x = date, y = value, color = type)) +
+  geom_point() +
+  facet_wrap(~ID)
+```
+
+So, Temperature data is unequally available, with some sites principally 
+available in 2016, others principally in 2017.
+
+```{r}
+xtabs(~ date + ID, data = t_data)
+```
+
+So, we have insanely uneven sampling histories.
+
+
+### Salinity variables
+```{r}
+s_data <- enviro_data %>%
+  select(ID, date, salinity, contains('sal'))%>%
+  mutate(across(ave_sal_psu:max.sal, as.numeric)) %>%
+  pivot_longer(salinity:sal.gradient, names_to = 'type', values_to = 'value') %>%
+  filter(! is.na(value))
+```
+
+```{r fig.width = 7, fig.height = 5}
+s_data %>%
+  filter(type != 'sal.gradient') %>%
+
+ggplot(aes(x = date, y = value, color = type)) +
+  geom_point() +
+  facet_wrap(~ID)
+```
+
+We see huge salinity gradients once each at 3/4 buoy, RAM, Wood and DRE 1.
+
+### DO Data
+
+
+
+```{r}
+do_data <- enviro_data %>%
+  select(ID, date, contains('do')) %>%
+  mutate(across(ave_do_sat:max.do, as.numeric))
+```
+
+
+We note one samples where DO value and DO Saturation value have likely been 
+reversed and one sample where the DO value has bee nrecorded incorrectly, 
+perhaps due to a transcription error.
+
+
+```{r}
+err1 <- do_data %>%
+  filter(ID == 'DRE 5', ave_do_sat < 50)
+
+(err1_do <- err1 %>% pull(ave_do_sat))
+(err1_sat <- err1 %>% pull(ave_do_mgperl))
+
+do_data$ave_do_mgperl[do_data$ID == 'DRE 5' & 
+                        do_data$ave_do_sat < 50] <- err1_do
+do_data$ave_do_sat[do_data$ID == 'DRE 5' & 
+                     do_data$ave_do_sat < 50] <- err1_sat
+
+rm(err1)
+```
+
+Her we suspect the DO value was mis-transcribed. This whole sample needs 
+checking.
+```{r}
+do_data %>%
+  filter(ID == 'NME CBO3')
+
+do_data$ave_do_mgperl[do_data$ID == 'NME CBO3'] <- NA
+
+```
+
+```{r}
+do_data %>%
+  filter(ID == 'NME CBO3')
+```
+
+```{r}
+do_data <- do_data %>%
+  select(-contains('sat')) %>%
+  select(-contains('stat')) %>%
+  pivot_longer(ave_do_mgperl:max.do, names_to = 'type', values_to = 'value') %>%
+  filter(! is.na(value))
+```
+
+
+
+```{r fig.width = 7, fig.height = 5}
+do_data %>%
+  
+ggplot(aes(x = date, y = value, color = type)) +
+  geom_point() +
+  facet_wrap(~ID)
+```
+
+We note the very low DO values for 3/4 Buoy, RAM, and Wood.
+
+
+### Chlorophyll Numbers
+```{r}
+chl_data <- enviro_data %>%
+  select(ID, date,sechi_depth, contains('chl')) %>%
+  mutate(across(ave_chl_microgperl:max.chl, as.numeric)) %>%
+  pivot_longer(sechi_depth:max.chl, names_to = 'type', values_to = 'value') %>%
+  filter(! is.na(value))
+```
+
+```{r fig.width = 7, fig.height = 5}
+chl_data %>%
+  
+ggplot(aes(x = date, y = value, color = type)) +
+  geom_point() +
+  facet_wrap(~ID)
+```
+
+Chlorophyll data is very sparse.
+
+# Check Site and Date alignment with Phytoplankton samples
+
+## Load phyto Collection Data
+```{r}
+collection_data <- read_excel("SEANET_Phyto Data_Bigelow.xlsx", 
+    sheet = "COLLECTION", col_types = c("date", 
+        "skip", "text", "numeric", "numeric", "skip", "skip", "text",
+        rep('skip', 14)), 
+    skip = 20, na = '-999') %>%
+  rename_with(.fn = ~sub(" \\(.*", "", .x) ) %>%
+  rename_with(.fn = ~gsub(" ", "_", .x))
+```
+
+### Deal with censored Secchi Depth data
+```{r}
+
+date_1 = as.Date(ISOdate(2016, 05, 18))
+
+collection_data <- collection_data %>%
+  rename(secchi = `Secchi__Depth`) %>%
+  mutate(secchi = if_else(Date_Collected == date_1 & Station == 'RAM', 7, secchi)) %>%
+  mutate(secchi = if_else(Date_Collected == date_1 & Station == 'WOOD', 8, secchi)) %>%
+  mutate(secchi_on_bottom = Date_Collected == date_1 & Station %in% c('RAM', 'WOOD')) %>%
+  relocate(secchi_on_bottom, .after = secchi)
+```
+
+## Find Core Sample ID values
+```{r}
+core_samples <- enviro_data[,c(1,2,3,4,12)] %>%
+  filter(! is.na(ID)) %>%
+  left_join(collection_data, by = c('date' = 'Date_Collected', 
+                                    'bigelow_id' = 'Station')) %>%
+  arrange(bigelow_id, date) %>%
+  filter( ! is.na(bigelow_id))
+```
+
+### Extract Core Enviro Data
+```{r}
+core_data <- enviro_data %>%
+  filter(mock_id %in% core_samples$mock_id)
+```
+
+# Look at Zooplankton Data
+## Wide Data
+```{r}
+zoopl_data_wide <- read_excel("Seanet ALL DATA FILE.xlsx", 
+    sheet = "Phyto_Enviromental", range = "a1:az53",
+    col_types = c("text", "text", "date", 
+                   rep('skip', 43), rep('numeric', 6))) %>%
+  rename_with(.fn = ~sub(" *$", "", .x) ) %>%
+  rename_with(.fn = ~gsub(" ", "_", .x)) %>%
+  mutate(mock_id = paste0('SNT_',date, '_', bigelow_id )) %>%
+  relocate(mock_id)
+```
+
+## Long Data
+```{r}
+zoopl_data_long <- read_excel("Seanet ALL DATA FILE.xlsx", 
+    sheet = "Zoop_Composition") %>%
+  arrange(Estuary, STATION, DATE)
+```
+
+### Community Data Matrix
+
+
+```{r}
+zoopl_community <- zoopl_data_long %>%
+  mutate(new_id = paste(Estuary, STATION, DATE, sep = '_')) %>%
+  rename(count = `QUANTITY`,
+         name = NAME) %>%
+  select(new_id, name, count)
+```
+
+We saw one double entered value: for Balanus on
+
+Bagaduce_2_2017-07-19
+
+With that in the data set, it has trouble making a community matrix.
+
+# We have t odeal with two rows of Balanus from one sample.
+```{r}
+zoopl_community$count[18] <- 35 + 29
+zoopl_community <- zoopl_community[-19,]
+```
+
+```{r}
+  zoopl_community <- zoopl_community%>%
+  pivot_wider(names_from = name, values_from = count, values_fill = 0) %>%
+```
+
+### Reorder columns by mean count
+```{r}
+my_order <- zoopl_community %>%
+  summarize(across(c(-1), mean)) %>%
+  unlist %>%
+  sort(decreasing = TRUE) %>%
+  names
+my_order
+```
+
+```{r}
+zoopl_community <- zoopl_community %>%
+  select(new_id, all_of(my_order))
+zoopl_community
+```
+
+From that it looks like we might be able to look closely at three or four
+species of zooplankton individually.

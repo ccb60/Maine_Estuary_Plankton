@@ -1,0 +1,428 @@
+---
+title: "Examining Bigelow Phytoplankton Data File"
+output:
+  github_document:
+    toc: true
+    fig_width: 5
+    fig_height: 4
+---
+<img
+    src="https://www.cascobayestuary.org/wp-content/uploads/2014/04/logo_sm.jpg"
+    style="position:absolute;top:10px;right:50px;" />
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align = 'center',
+                      fig.width = 5, fig.height = 4,
+                      collapse = TRUE, comment = "#>")
+```
+
+#Introduction
+In this notebook, I am reviewing data in one of the two data files I was 
+provided.  Principally , this is to get familiar with the contents of the file, 
+but it is also to check the relationship among tabs.
+
+#Load Libraries
+```{r}
+library(tidyverse)
+library(readxl)
+
+library(GGally)
+
+library(emmeans)
+
+theme_set(theme_minimal())
+```
+
+# Data Tabs in the Excel File
+The data in the excel file is divided among many tabs, not all laid out the same way.
+```{r}
+fn <- 'SEANET_Phyto Data_Bigelow.xlsx'
+
+(tabs <- excel_sheets(fn))
+```
+# Load Flowcam FCM Data
+```{r}
+flowcam_data_FCM <- read_excel(fn, sheet = "FCAM FCM", skip = 59) %>%
+  rename_with(.fn = ~sub(" \\(.*", "", .x) ) %>%
+ #rename_with(.fn = ~sub("FCM ", "", .x) ) %>%
+  rename_with(.fn = ~sub("Vol", "", .x) ) %>%
+  rename_with(.fn = ~sub(" *$", "", .x) ) %>%
+  rename_with(.fn = ~gsub(" ", "_", .x)) %>%
+  rename_with(.fn = ~gsub("\\.", "", .x)) %>%
+  rename('Total_GT_20' = starts_with('Total_>'))
+```
+
+
+## Data Groups
+Notice that not all groups are equivalent, so these should not be analyzed as
+one large group.
+
+```{r}
+cat ('\n**************Basic Phytoplankton Volumes******************\n')
+names(flowcam_data_FCM)[2:30]
+cat ('\n**************Non Phytoplankton ******************\n')
+names(flowcam_data_FCM)[31:34]
+cat ('\n**************Group Total Volumes******************\n')
+names(flowcam_data_FCM)[35:38]
+cat ('\n**************Group Total Biomass******************\n')
+names(flowcam_data_FCM)[39:43]
+```
+
+Biomass is a simple function of volumes, so little point in analyzing both.
+
+```{r}
+ggplot(flowcam_data_FCM, aes(Total_Diatom_FCM, Total_Diatom_FCM_Biomass)) +
+  geom_point()
+```
+
+
+```{r}
+ggpairs(log(flowcam_data_FCM[35:38]), progress = FALSE)
+```
+
+Why are some not showing correlation coefficients? The problem crops us for
+any correlation involving the ciliates, althoug hthere are no missing values or
+other problems. Note that diatom vs ciliates may show a non-linear pattern.
+
+A simple Pearson correlation
+won't give results, but Spearman and Kendall do.
+
+```{r}
+cor(log(flowcam_data_FCM[35:38]), method = 'spearman', use = 'pairwise')
+```
+
+## Flowcam data ABD
+This is apparently based on a slightly different method for estimating 
+biovolume. These SHOULD be highly correlated with the last set of values.
+
+```{r}
+library(readxl)
+flowcam_data_ABD <- read_excel("SEANET_Phyto Data_Bigelow.xlsx", 
+                               sheet = "FCAM ABD", skip = 58) %>%
+  rename_with(.fn = ~sub(" \\(.*", "", .x) ) %>%
+  #rename_with(.fn = ~sub("ABD", "", .x) ) %>%
+  rename_with(.fn = ~sub("Vol", "", .x) ) %>%
+  rename_with(.fn = ~sub(" *$", "", .x) ) %>%
+  rename_with(.fn = ~gsub(" ", "_", .x)) %>%
+  rename_with(.fn = ~gsub("\\.", "", .x)) %>%
+  rename('Total_GT_20' = starts_with('Total_>'))
+```
+```{r}
+cbind(names(flowcam_data_FCM), names(flowcam_data_ABD))
+```
+
+## Compare Flowcam Data sets
+### Compare Sample IDs
+We note two samples in the ABD tab that lack sample IDs, although all other
+sample IDs match.  
+```{r}
+test <- cbind(flowcam_data_FCM$Sample_ID, flowcam_data_ABD$Sample_ID)
+which(test[,1] != test[,2])
+which(test[,1] != test[,2])
+which(is.na(test[,1]))
+which(is.na(test[,2]))
+```
+
+I suspect data corruption somewhere, so for now, I'll 
+substitute the Sample ID from the other tab.
+```{r}
+flowcam_data_ABD$Sample_ID[25] <- flowcam_data_FCM$Sample_ID[25]
+flowcam_data_ABD$Sample_ID[26] <- flowcam_data_FCM$Sample_ID[26]
+```
+
+### Compare Total Algae Biomass
+```{r}
+flowcam_data_ABD %>%
+  select(Sample_ID, Total_GT_20 ) %>%
+  rename(tot = Total_GT_20) %>%
+  full_join(flowcam_data_FCM) %>%
+  select(Sample_ID, Total_GT_20, tot) %>%
+  ggplot(aes(Total_GT_20, tot)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1) +
+  scale_y_log10() +
+  scale_x_log10() +
+  xlab('log Total GT 20 from ABD') +
+  ylab('log Total GT 20 from FCM')
+```
+
+So, the two metrics provide similar estimates of total biomass GT 20, with FCM
+usually estimating slightly larger totals. I suspect we can treat these two tabs 
+as nearly equivalent.  I will leave it up to Kevin to decide which to use. For
+now, I will work with the FCM tab only.
+
+# Load Collection Data
+```{r}
+collection_data <- read_excel("SEANET_Phyto Data_Bigelow.xlsx", 
+    sheet = "COLLECTION", col_types = c("date", 
+        "date", "text", "numeric", "text", 
+        "text", "text", "text", "date", "text", 
+        "numeric", "numeric", "text", "text", 
+        "text", "text", "text", "text", "numeric", 
+        "numeric", "numeric", "numeric"), 
+    skip = 20, na = '-999') %>%
+  rename_with(.fn = ~sub(" \\(.*", "", .x) ) %>%
+  rename_with(.fn = ~gsub(" ", "_", .x))
+```
+
+That does not properly import the time of sample collection, but that's not
+worth fixing at this level of review.
+
+The last four columns here are apparently copied from the PICO-NANO tab. However,
+it looks like the copied data did not correctly account for the inconsistent
+labeling on that tab.
+
+# Data on Picoplankton and Nanoplankton
+```{r}
+pico_data <- read_excel("SEANET_Phyto Data_Bigelow.xlsx", 
+                        sheet = "PICO-NANO")  %>%
+  rename_with(.fn = ~sub(" \\(.*", "", .x) ) %>%
+  rename_with(.fn = ~gsub(" ", "_", .x))
+```
+
+We note that we have one MORE sample here than indicated in the data on sample
+collection.  This is because one sample ID is not represented and two sample IDs 
+are duplicated.
+
+```{r}
+ collection_data$Sample_ID[ ! collection_data$Sample_ID %in% pico_data$Sample_ID ]
+```
+
+```{r}
+pico_data$Sample_ID[duplicated( pico_data$Sample_ID)]
+```
+
+It's possible the first is a mis-labelling, since the duplicate is adjacent to
+the missing value. THe second, however, can not be explained away so  readily. 
+
+Let's check sample aligment
+```{r}
+collection_data %>%
+  select(Sample_ID, Total_Phyto_Conc) %>%
+  rename(Total = Total_Phyto_Conc) %>%
+  full_join(pico_data, by = "Sample_ID") %>%
+  select(Sample_ID, Total, Total_Phyto_Conc)
+```
+
+
+
+
+# Data on Chlorophyll and Phaeophytin
+We drop the "pre calculated" means and standard deviations for the time being.
+```{r}
+chl_data <-   read_excel("SEANET_Phyto Data_Bigelow.xlsx", 
+                        sheet = "CHL", skip = 25) %>%
+  select(-starts_with('Avg')) %>%
+  rename_with(.fn = ~sub(" \\(.*", "", .x) ) %>%
+  rename_with(.fn = ~gsub(" ", "_", .x)) %>%
+  mutate(Replicate = substr(Sample_ID, nchar(Sample_ID), nchar(Sample_ID)),
+         Sample_ID = substr(Sample_ID, 1, nchar(Sample_ID)-2)) %>%
+  relocate(Replicate, .after = 'Sample_ID')
+```
+
+# Summary data on Chlorophyll and Phaephytin
+The rows of data with just the averages appear to have been copied to the next
+Tab in the spreadsheet.  This is likely tobe convenient for comparison with
+other environmental variables.
+
+```{r}
+chl_avg_data <- read_excel("SEANET_Phyto Data_Bigelow.xlsx", 
+    sheet = "Sheet1", col_types = c("text", 
+        "date", "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric"))
+```
+
+# Maximum Photosynthesis Data
+```{r}
+pmax_data <- read_excel("SEANET_Phyto Data_Bigelow.xlsx", 
+    sheet = "PMAX", skip = 12)
+
+names(pmax_data) <- c('Sample_ID', 'pmax', 'pmax_chl', 'Comments')
+```
+
+# Nutrients Data
+```{r}
+nutrients_data <-  read_excel("SEANET_Phyto Data_Bigelow.xlsx",
+                              sheet = "DIN", skip = 5)
+names(nutrients_data) <- c('Sample_ID', 'NOx', 'NO2', 'NO3',
+                           'NH4', 'PO4', 'Si')
+```
+
+## Add Organic Nitrogen Data
+```{r}
+DON_data <- read_excel("SEANET_Phyto Data_Bigelow.xlsx", 
+    sheet = "DON", skip = 5)
+names(DON_data) <- c("Sample_ID", "DON")
+
+nutrients_data <- nutrients_data %>%
+  full_join(DON_data, by = "Sample_ID") %>%
+  relocate(DON, .after = NH4)
+```
+
+
+```{r}
+rm(DON_data)
+```
+
+# C N Data and Stable Isotope Data
+this is found in two different Tabs.  It appears these are some replicate 
+analyses here, labeled in confusing ways....
+
+One the Elemental N and C values, they are labeled as "not blank corrected".  I 
+am not sure whether they should be blank corrected, and if so, how to do so 
+correctly.  MY tendency woudl be t o"correct" by the man value of the blanks. 
+This would have a small effect on elemental carbon, but a sizeable effect on 
+elemental nitrogen.  
+
+Because of these uncertainties, I focus only on the stable isotope figures.
+
+```{r}
+POC1_data <- read_excel("SEANET_Phyto Data_Bigelow.xlsx", 
+                        sheet = "POC1", skip = 11, n_max = 30) %>%
+  rename(Sample_ID = `Sample ID`) %>%
+  mutate(Replicate = substr(Sample_ID, nchar(Sample_ID), nchar(Sample_ID)),
+         Sample_ID = substr(Sample_ID, 1, nchar(Sample_ID)-2)) %>%
+  relocate(Replicate, .after = 'Sample_ID') %>%
+  select(c(1,2,9,10, 11))
+  
+names(POC1_data)[3] <- 'Delta_N'
+names(POC1_data)[4] <- 'Delta_C'
+```
+
+```{r}
+POC2_data <- read_excel("SEANET_Phyto Data_Bigelow.xlsx", 
+                        sheet = "POC2", skip = 11, n_max = 30) %>%
+  rename(Sample_ID = `Sample ID`) %>%
+  mutate(Replicate = 'C') %>%
+  relocate(Replicate, .after = 'Sample_ID') %>%
+  select(c(1,2,10, 11, 12))
+
+POC2_data$Replicate[19] <- 'D'  # Only apparent duplicate in second round of analysis
+
+names(POC2_data)[3] <- 'Delta_N'
+names(POC2_data)[4] <- 'Delta_C'
+```
+
+```{r}
+POC_data <- POC1_data %>%
+  bind_rows(POC2_data)
+rm(POC1_data, POC2_data)
+```
+
+## Review of Delta_N data
+```{r fig.width = 8, fig.height = 4}
+ggplot(POC_data, aes(Sample_ID, Delta_N)) +
+  geom_point(aes(color = ! is.na(Comments), shape = Replicate)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.2))
+```
+
+So, looking at that, we see the two outliers, which were flagged in the
+analytic results.  We delete them.
+
+```{r}
+POC_data <- POC_data %>%
+  mutate(Delta_N = if_else(row_number() %in% c(16,17), NA_real_, Delta_N))
+```
+
+# Calculate Average Values
+```{r}
+POC_data_sum <- POC_data %>%
+  group_by(Sample_ID) %>%
+  summarize(Delta_N_mean = mean(Delta_N, na.rm = TRUE),
+            Delta_N_SD =   sd(Delta_N, na.rm = TRUE),
+            Deta_N_n  =    sum(! is.na(Delta_N)),
+            Delta_C_mean = mean(Delta_C, na.rm = TRUE),
+            Delta_C_SD =   sd(Delta_C, na.rm = TRUE),
+            Deta_C_n  =    sum(! is.na(Delta_C)))
+```
+
+WE have only a single measurement at most samples, yet the standard errors are 
+fairly large for those samples where we **do** have replicates. Careful analysis
+would estimate standard errors based on a hierarchical model for those samples
+with only a single analysis.
+
+## Graphic Exploration of Site and Date
+### Delta N Data
+```{r}
+POC_data_test <- POC_data %>%
+  select(-Comments) %>%
+  mutate(samp_date = as.Date(substr(Sample_ID, 1,10), format = '%Y-%m-%d'),
+         samp_loc  = substr(Sample_ID, 12, nchar(Sample_ID)),
+         samp_loc = factor(samp_loc),
+         date_factor = factor(samp_date))
+```
+
+```{r fig.width = 8, fig.height = 5}
+ggplot(POC_data_test, aes(samp_loc, Delta_N)) +
+  geom_point(aes(color = date_factor)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.2))
+```
+
+### Delta C Data
+```{r fig.width = 8, fig.height = 5}
+ggplot(POC_data_test, aes(samp_loc, Delta_C)) +
+  geom_point(aes(color = date_factor)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.2))
+```
+
+So, looking at Carbon, it looks like midsummer samples tend to be low Delta C
+Except at the Mooring location.
+
+## Quick Models
+### Delta N Model
+```{r}
+delta_N_lm <- lm(Delta_N ~ samp_loc * date_factor,  data = POC_data_test)
+anova(delta_N_lm)
+```
+
+```{r}
+emmip(delta_N_lm, samp_loc ~ date_factor)
+```
+
+So, what jumps out is the UNE site, in the spring, is doing something very
+different. THe UNE site is on the Saco, so likely dominated by freshwater runoff
+in the spring.  I tend to believe just about everything else is just noise, but
+it is hard to tell from this plot alone.
+
+### Delta_C Model
+```{r}
+delta_C_lm <- lm(Delta_C ~ samp_loc * date_factor,  data = POC_data_test)
+anova(delta_C_lm)
+```
+
+```{r}
+emmip(delta_C_lm, samp_loc ~ date_factor)
+```
+
+So here we see a stronger seasonal pattern at all sites, again with UNE doing
+something slightly different, and possibly the Mooring also doing something.
+
+# Reflection of data contents.
+1.  We have collection records for 77 samples.
+
+2.  We also have 77 rows for
+
+    * `chl_avg_data`  
+    * `nutrients_data`  
+    * `pmax_data`  
+    
+3.  `pico_data` has 78 rows, because of exactly one replicate sample
+
+4.  We have only 74 rows in the flowcam community data
+
+5.  The two different community analysis methods appear correlated.
+
+6.  The POC data is more selective, with only 47 unique sample IDs.
+
+
+# Data Reorganization
+We want to assemble a data set of explanatory data.  We start with selected info 
+from `collection_data`.
+```{r}
+the_data <- collection_data %>%
+  select(-c(Collected_By, `Collection_Notes/Weather_Conditions`,
+            Time_Received, POC_Vol_Filt, Chl_Vol_Filt,
+            Nutrients_Filtration:Fluorometer_Operator, ))
+```
+
+the_data <- 
