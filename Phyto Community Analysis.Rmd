@@ -1,0 +1,197 @@
+---
+title: "Examining Zooplankton Data File"
+author: Curtis C. Bohlen, Casco Bay Estuary Partnership
+output:
+  github_document:
+    toc: true
+    fig_width: 5
+    fig_height: 4
+---
+<img
+    src="https://www.cascobayestuary.org/wp-content/uploads/2014/04/logo_sm.jpg"
+    style="position:absolute;top:10px;right:50px;" />
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align = 'center',
+                      fig.width = 5, fig.height = 4,
+                      collapse = TRUE, comment = "#>")
+```
+
+#Introduction
+In this notebook, I am taking a first stab at phytoplankton community analysis.
+We look principally at Non-metric multidimensional scaling and cluster analysis.
+We rely on the `vegan` package for most of the underlying tools
+
+# Load Libraries
+```{r}
+library(tidyverse)
+library(readxl)
+
+library(vegan)
+
+theme_set(theme_minimal())
+```
+
+# Load Data
+```{r}
+fn <- 'SEANET_Phyto Data_Bigelow.xlsx'
+
+phyto_community <- read_excel(fn, sheet = "FCAM FCM", skip = 59) %>%
+  rename_with(.fn = ~sub(" \\(.*", "", .x) ) %>%
+  rename_with(.fn = ~sub("FCM ", "", .x) ) %>%
+  rename_with(.fn = ~sub("Vol", "", .x) ) %>%
+  rename_with(.fn = ~sub(" *$", "", .x) ) %>%
+  rename_with(.fn = ~gsub(" ", "_", .x)) %>%
+  rename_with(.fn = ~gsub("\\.", "", .x)) %>%
+  select(1:30)
+```
+
+### Reorder columns by mean count
+We look at the number of samples containing each species.  The last 7 taxon 
+groups could be considered "rare".
+
+```{r}
+my_order <- phyto_community %>%
+  summarize(across(c(-1), function(x) sum(x>0))) %>%
+  unlist 
+my_order
+
+my_order <- my_order %>%
+  sort(decreasing = TRUE) %>%
+  names
+```
+
+```{r}
+phyto_community <- phyto_community %>%
+  select(Sample_ID, all_of(my_order))
+phyto_community
+```
+
+## Default 2-D NMDS
+```{r}
+NMDS_default <- metaMDS(phyto_community[,-1], k = 2, autotransform = TRUE,
+                        maxit = 50, trymax = 50)
+```
+
+
+
+```{r}
+plot(NMDS_default, display = 'species', type = 't')
+```
+
+# Cluster Analysis 
+```{r cluster_analysis}
+d <- vegdist(phyto_community[,-1], "bray") # Bray-Curtis default 
+clust <- hclust(d, method = 'average')          # This is agglomerative clustering - build the groups
+                            # from a single observation not split them apart...
+cut5 <- cutree(clust, 5)    # the cut number is arbitrary - we can pick what we
+                            # want. BUT having more than 7 groups is hard.
+                            # I just play around and see what is most 
+                            #informative.
+```
+
+```{r fig.width = 10}
+plot(clust, hang=-1)
+```
+
+```{r}
+plot_data <- data.frame(NMDS_default$points) %>%
+    mutate(id = phyto_community$Sample_ID)
+```
+
+## Plot Clusters
+```{r plot_clusters}
+plot_data <- plot_data %>%
+  mutate(cluster = factor(cut5),
+         row = row_number())
+
+plt <- ggplot(data = plot_data, aes(MDS1, MDS2)) + 
+  geom_point(aes(color = cluster), size = 2.5) +
+  scale_color_viridis_d(option = 'C', name = 'Cluster') +
+  coord_fixed()
+plt
+```
+```{r}
+plot(NMDS_default, display = 'sites', type = 't')
+hull <- ordihull(NMDS_default, groups = cut5, display = "sites")
+```
+
+# Finer Control of Graphics
+To get greater control over these plots, we need to move all this to 
+`ggplot()`.
+
+## Understanding `ordihull()`
+`vegan` is built largely on S3 classes.  Here, the underlying implementation
+is based on a named list, , so it's easy to find a starting point by looking at 
+the names in the object returned by `ordihull()`.
+```{r what_is_ordihull}
+class(hull)
+names(hull)
+```
+
+I doubt it is a coincidence that the list has five objects and we defined five
+clusters. We look at the first item in this list.
+
+```{r check_first_ordihull_item}
+class(hull[[1]])
+hull[[1]]
+```
+
+It's just an array containing the points of the vertexes of the polygons. Each 
+polygon is passed as an array of points. We can work with that, although
+it is going to be easier to "flatten" the data structure.
+
+We need to convert each array to a data frame (tibble) and append them,
+retaining their cluster identities. This can be done in several ways. Here I
+convert the arrays to tibbles, then bind them into one tibble with
+`bind_rows()`, which conveniently allows you to label each entry with the source
+data frame (here the cluster number).
+
+```{r build_hulls_df}
+hullsdfs <- map(hull, as_tibble) # Creates a list of tibbles
+hulls_df <- hullsdfs %>%
+  bind_rows(.id = 'Cluster')  # converts number in the list to a variable
+hulls_df
+```
+
+## Plot Clusters and  Convex Hulls
+```{r plot_clusters_small, fig.width = 6, fig.height = 6}
+plt <- ggplot(data = plot_data, aes(MDS1, MDS2)) + 
+  #geom_point(aes(color = cluster), size = 1.25) +
+  geom_text(aes(label = row, color = cluster), size = 4) +
+  geom_polygon(data=hulls_df,  
+               mapping = aes(x= NMDS1,y= NMDS2, group = Cluster,
+                             color = Cluster),
+               #color = 'black',
+               fill = NA) + 
+ # scale_color_viridis_d(option = 'B', name = 'Cluster') +
+  
+  # Adjust size of legend
+  theme(legend.key.size = unit(0.35, 'cm')) +
+  
+  # Set aspect ratio (defaults to 1)
+  coord_fixed() 
+plt
+```
+
+What jumps out is that most observations fall into a central cluster.  A few of
+the other, smaller clusters consist of a couple of sequential observations,
+suggesing several of the clusters are sequentially close 
+observations, which suggests a strong pattern to these data, if only we can 
+figure out what it is....
+
+```{r plot_clusters_large, fig.width = 5}
+plt <- ggplot(data = plot_data, aes(MDS1, MDS2)) + 
+  geom_point(aes(color = cluster), size = 2) +
+  geom_polygon(data=hulls_df,  
+               mapping = aes(x= NMDS1,y= NMDS2, group = Cluster),
+               color = 'black', fill = NA) + 
+  #scale_color_viridis_d(option = 'C', name = 'Cluster') +
+  
+  # Adjust size of legend
+  theme(legend.key.size = unit(0.35, 'cm')) +
+  
+  # Set aspect ratio (defaults to 1)
+  coord_fixed() 
+plt
+```
