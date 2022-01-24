@@ -20,7 +20,7 @@ knitr::opts_chunk$set(fig.align = 'center',
 #Introduction
 This notebook generates CSV files to import into ArcGIS , and a simple crosswalk
 table to facilitate consistent matching of zooplankton data and phytoplankton
-data.  The two organizations collecting data used somewhat different site and
+data. The two organizations collecting data used somewhat different site and
 sample naming conventions. This is my effort to standardize conversion.
 
 # Load Libraries
@@ -49,10 +49,13 @@ zoopl_sample_codes <- read_excel("Seanet ALL DATA FILE.xlsx",
 ```
 
 ## All Locations
-I use the `first()` function here because I notice som inconsistencies in the 
+I use the `first()` function here because I notice some inconsistencies in the 
 latitude and longitude reported from some sites.  It looks like latitude and 
 longitude were copied incorrectly at least once. Specifically, RAM and Wood
 appear to have been mislabeled at least once.
+
+Note that I add `estuary' and `estuary_order` values here to facilitate later 
+models.  
 
 ```{r}
 all_sites <- zoopl_sample_codes %>%
@@ -61,12 +64,21 @@ all_sites <- zoopl_sample_codes %>%
   summarize(bigelow_id = first(bigelow_id),
             latitude = first(`latitude decdeg`),
             longitude = -first(`longitude decdeg`),
-            is_phyto = ! is.na(bigelow_id))
+            is_phyto = ! is.na(bigelow_id)) %>%
+  mutate(estuary = case_when(grepl('BRE', ID) ~ 'Bagaduce',
+                             grepl('DRE', ID) ~ 'Damariscotta',
+                             grepl('NME', ID) ~ 'New Meadows',
+                             TRUE         ~ 'Saco'),
+         estuary_order = case_when(estuary != 'Saco' ~ as.numeric(substr(ID, nchar(ID), nchar(ID))),
+                                   ID == '3/4 BUOY' ~ 3,
+                                   ID == 'Wood' ~ 2,
+                                   ID == 'RAM' ~ 1)) %>%
+  relocate(estuary, estuary_order, .after = 'bigelow_id') 
 all_sites
 ```
 
 We need the `na = ''` code to facilitate reading this file into ArcGIS. 
-Otherwise, the code outputs "NA" for missong values, which ArcGIS reads as 
+Otherwise, the code outputs "NA" for missing values, which ArcGIS reads as 
 a character value.
 
 ```{r}
@@ -91,5 +103,4 @@ site_crosswalk
 ```{r}
 write.csv(site_crosswalk, "site_crosswalk.csv")
 ```
-
 
