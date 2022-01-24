@@ -28,8 +28,6 @@ library(readxl)
 
 library(GGally)
 
-library(emmeans)
-
 theme_set(theme_minimal())
 ```
 
@@ -37,7 +35,6 @@ theme_set(theme_minimal())
 The data in the excel file is divided among many tabs, not all laid out the same way.
 ```{r}
 fn <- 'Seanet ALL DATA FIlE.xlsx'
-
 (tabs <- excel_sheets(fn))
 ```
 
@@ -81,9 +78,9 @@ on the rest of the data sheet.
 
 ## Environmental Variables
 
-It'snot a t all lear what the source of al lthese environmental variables are.
-It looks like some are raw observations (sst, salinity, secchi_depth), while
-most are derived statistics, presumably from sonde downcasts.
+It's not at all clear what the source of all these environmental variables are.
+It looks like some are raw observations (`sst`, `salinity`, `sechi_depth`),
+while most are derived statistics, presumably from sonde downcasts.
 
 ### Temperature variables
 ```{r}
@@ -134,9 +131,6 @@ ggplot(aes(x = date, y = value, color = type)) +
 We see huge salinity gradients once each at 3/4 buoy, RAM, Wood and DRE 1.
 
 ### DO Data
-
-
-
 ```{r}
 do_data <- enviro_data %>%
   select(ID, date, contains('do')) %>%
@@ -145,7 +139,7 @@ do_data <- enviro_data %>%
 
 
 We note one samples where DO value and DO Saturation value have likely been 
-reversed and one sample where the DO value has bee nrecorded incorrectly, 
+reversed and one sample where the DO value has been recorded incorrectly, 
 perhaps due to a transcription error.
 
 
@@ -164,8 +158,9 @@ do_data$ave_do_sat[do_data$ID == 'DRE 5' &
 rm(err1)
 ```
 
-Her we suspect the DO value was mis-transcribed. This whole sample needs 
+Here we suspect the DO value was mis-transcribed. This whole sample needs 
 checking.
+
 ```{r}
 do_data %>%
   filter(ID == 'NME CBO3')
@@ -220,7 +215,6 @@ ggplot(aes(x = date, y = value, color = type)) +
 Chlorophyll data is very sparse.
 
 # Check Site and Date alignment with Phytoplankton samples
-
 ## Load phyto Collection Data
 ```{r}
 collection_data <- read_excel("SEANET_Phyto Data_Bigelow.xlsx", 
@@ -262,18 +256,6 @@ core_data <- enviro_data %>%
 ```
 
 # Look at Zooplankton Data
-## Wide Data
-```{r}
-zoopl_data_wide <- read_excel("Seanet ALL DATA FILE.xlsx", 
-    sheet = "Phyto_Enviromental", range = "a1:az53",
-    col_types = c("text", "text", "date", 
-                   rep('skip', 43), rep('numeric', 6))) %>%
-  rename_with(.fn = ~sub(" *$", "", .x) ) %>%
-  rename_with(.fn = ~gsub(" ", "_", .x)) %>%
-  mutate(mock_id = paste0('SNT_',date, '_', bigelow_id )) %>%
-  relocate(mock_id)
-```
-
 ## Long Data
 ```{r}
 zoopl_data_long <- read_excel("Seanet ALL DATA FILE.xlsx", 
@@ -282,8 +264,6 @@ zoopl_data_long <- read_excel("Seanet ALL DATA FILE.xlsx",
 ```
 
 ### Community Data Matrix
-
-
 ```{r}
 zoopl_community <- zoopl_data_long %>%
   mutate(new_id = paste(Estuary, STATION, DATE, sep = '_')) %>%
@@ -292,21 +272,22 @@ zoopl_community <- zoopl_data_long %>%
   select(new_id, name, count)
 ```
 
-We saw one double entered value: for Balanus on
+We saw one double entered value: for *Balanus* on
 
 Bagaduce_2_2017-07-19
 
 With that in the data set, it has trouble making a community matrix.
 
-# We have t odeal with two rows of Balanus from one sample.
+# We have to deal with two rows of Balanus from one sample
+I use an average value....
 ```{r}
-zoopl_community$count[18] <- 35 + 29
+zoopl_community$count[18] <- (35 + 29)/2
 zoopl_community <- zoopl_community[-19,]
 ```
 
 ```{r}
-  zoopl_community <- zoopl_community%>%
-  pivot_wider(names_from = name, values_from = count, values_fill = 0) %>%
+  zoopl_community <- zoopl_community %>%
+  pivot_wider(names_from = name, values_from = count, values_fill = 0)
 ```
 
 ### Reorder columns by mean count
