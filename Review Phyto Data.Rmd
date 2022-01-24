@@ -81,7 +81,7 @@ ggpairs(log(flowcam_data_FCM[35:38]), progress = FALSE)
 ```
 
 Why are some not showing correlation coefficients? The problem crops us for
-any correlation involving the ciliates, althoug hthere are no missing values or
+any correlation involving the ciliates, although there are no missing values or
 other problems. Note that diatom vs ciliates may show a non-linear pattern.
 
 A simple Pearson correlation
@@ -192,10 +192,10 @@ are duplicated.
 pico_data$Sample_ID[duplicated( pico_data$Sample_ID)]
 ```
 
-It's possible the first is a mis-labelling, since the duplicate is adjacent to
+It's possible the first is a mis-labeling, since the duplicate is adjacent to
 the missing value. THe second, however, can not be explained away so  readily. 
 
-Let's check sample aligment
+Let's check sample alignment
 ```{r}
 collection_data %>%
   select(Sample_ID, Total_Phyto_Conc) %>%
@@ -222,7 +222,7 @@ chl_data <-   read_excel("SEANET_Phyto Data_Bigelow.xlsx",
 
 # Summary data on Chlorophyll and Phaephytin
 The rows of data with just the averages appear to have been copied to the next
-Tab in the spreadsheet.  This is likely tobe convenient for comparison with
+Tab in the spreadsheet.  This is likely to be convenient for comparison with
 other environmental variables.
 
 ```{r}
@@ -270,8 +270,8 @@ analyses here, labeled in confusing ways....
 
 One the Elemental N and C values, they are labeled as "not blank corrected".  I 
 am not sure whether they should be blank corrected, and if so, how to do so 
-correctly.  MY tendency woudl be t o"correct" by the man value of the blanks. 
-This would have a small effect on elemental carbon, but a sizeable effect on 
+correctly.  MY tendency would be to "correct" by the man value of the blanks. 
+This would have a small effect on elemental carbon, but a sizable effect on 
 elemental nitrogen.  
 
 Because of these uncertainties, I focus only on the stable isotope figures.
@@ -413,16 +413,3 @@ something slightly different, and possibly the Mooring also doing something.
 5.  The two different community analysis methods appear correlated.
 
 6.  The POC data is more selective, with only 47 unique sample IDs.
-
-
-# Data Reorganization
-We want to assemble a data set of explanatory data.  We start with selected info 
-from `collection_data`.
-```{r}
-the_data <- collection_data %>%
-  select(-c(Collected_By, `Collection_Notes/Weather_Conditions`,
-            Time_Received, POC_Vol_Filt, Chl_Vol_Filt,
-            Nutrients_Filtration:Fluorometer_Operator, ))
-```
-
-the_data <- 
