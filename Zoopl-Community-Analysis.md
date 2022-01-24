@@ -76,7 +76,7 @@ confirmed.
 # Two rows of Balanus from one sample.
 
 ``` r
-zoopl_community$count[18] <- 35 + 29
+zoopl_community$count[18] <- (35 + 29)/2
 zoopl_community <- zoopl_community[-19,]
 ```
 
@@ -111,7 +111,7 @@ zoopl_community
 #>  1 Bagadu~      55           103          0         116      32      0        32
 #>  2 Bagadu~      50           126          0          64      79      0         0
 #>  3 Bagadu~      41           147          0         154       0      0         0
-#>  4 Bagadu~      67           104         83          40      64      0         0
+#>  4 Bagadu~      67           104         83          40      32      0         0
 #>  5 Bagadu~      45            41         31         106      15      0        17
 #>  6 Bagadu~     211            42          0           0      81     48       134
 #>  7 Bagadu~     297            72         62          79      53      0         0
@@ -126,71 +126,81 @@ zoopl_community
 
 ## Default 2-D NMDS
 
+This generally fails to converge.
+
 ``` r
 NMDS_default <- metaMDS(zoopl_community[,-1], k = 2, autotransform = TRUE,
                         maxit = 50, trymax = 50)
 #> Square root transformation
 #> Wisconsin double standardization
-#> Run 0 stress 0.2059876 
-#> Run 1 stress 0.2003903 
+#> Run 0 stress 0.205402 
+#> Run 1 stress 0.2048711 
 #> ... New best solution
-#> ... Procrustes: rmse 0.07727681  max resid 0.2498926 
-#> Run 2 stress 0.1867486 
+#> ... Procrustes: rmse 0.09486153  max resid 0.2776757 
+#> Run 2 stress 0.1886686 
 #> ... New best solution
-#> ... Procrustes: rmse 0.07885747  max resid 0.2043896 
-#> Run 3 stress 0.1935797 
-#> Run 4 stress 0.1895086 
-#> Run 5 stress 0.2010221 
-#> Run 6 stress 0.2100378 
-#> Run 7 stress 0.2123175 
-#> Run 8 stress 0.1964796 
-#> Run 9 stress 0.1918425 
-#> Run 10 stress 0.1951201 
-#> Run 11 stress 0.196853 
-#> Run 12 stress 0.1951306 
-#> Run 13 stress 0.2095153 
-#> Run 14 stress 0.2053139 
-#> Run 15 stress 0.2113976 
-#> Run 16 stress 0.1877556 
-#> Run 17 stress 0.2046536 
-#> Run 18 stress 0.1901558 
-#> Run 19 stress 0.192635 
-#> Run 20 stress 0.193504 
-#> Run 21 stress 0.2024208 
-#> Run 22 stress 0.1896553 
-#> Run 23 stress 0.2001391 
-#> Run 24 stress 0.2089482 
-#> Run 25 stress 0.199861 
-#> Run 26 stress 0.2040772 
-#> Run 27 stress 0.190485 
-#> Run 28 stress 0.204831 
-#> Run 29 stress 0.2060007 
-#> Run 30 stress 0.2041718 
-#> Run 31 stress 0.2053776 
-#> Run 32 stress 0.2038777 
-#> Run 33 stress 0.1992232 
-#> Run 34 stress 0.2091926 
-#> Run 35 stress 0.2117059 
-#> Run 36 stress 0.2023679 
-#> Run 37 stress 0.2032589 
-#> Run 38 stress 0.1849829 
+#> ... Procrustes: rmse 0.07037083  max resid 0.2409328 
+#> Run 3 stress 0.2135785 
+#> Run 4 stress 0.1886024 
 #> ... New best solution
-#> ... Procrustes: rmse 0.04444531  max resid 0.2328228 
-#> Run 39 stress 0.1981218 
-#> Run 40 stress 0.1896055 
-#> Run 41 stress 0.2186814 
-#> Run 42 stress 0.1857615 
-#> Run 43 stress 0.1910557 
-#> Run 44 stress 0.2105312 
-#> Run 45 stress 0.1912791 
-#> Run 46 stress 0.1999969 
-#> Run 47 stress 0.199899 
-#> Run 48 stress 0.2000315 
-#> Run 49 stress 0.205945 
-#> Run 50 stress 0.2141925 
+#> ... Procrustes: rmse 0.02757016  max resid 0.1180147 
+#> Run 5 stress 0.2067008 
+#> Run 6 stress 0.1998152 
+#> Run 7 stress 0.20853 
+#> Run 8 stress 0.1978532 
+#> Run 9 stress 0.1853602 
+#> ... New best solution
+#> ... Procrustes: rmse 0.05351339  max resid 0.2410094 
+#> Run 10 stress 0.1891529 
+#> Run 11 stress 0.202062 
+#> Run 12 stress 0.2205635 
+#> Run 13 stress 0.1969244 
+#> Run 14 stress 0.202349 
+#> Run 15 stress 0.1875216 
+#> Run 16 stress 0.1898866 
+#> Run 17 stress 0.1875232 
+#> Run 18 stress 0.1867918 
+#> Run 19 stress 0.2076788 
+#> Run 20 stress 0.1929839 
+#> Run 21 stress 0.2220053 
+#> Run 22 stress 0.1995011 
+#> Run 23 stress 0.2164155 
+#> Run 24 stress 0.2078133 
+#> Run 25 stress 0.1950509 
+#> Run 26 stress 0.1875424 
+#> Run 27 stress 0.1988306 
+#> Run 28 stress 0.208625 
+#> Run 29 stress 0.1924163 
+#> Run 30 stress 0.2035824 
+#> Run 31 stress 0.2005931 
+#> Run 32 stress 0.2094047 
+#> Run 33 stress 0.2031234 
+#> Run 34 stress 0.2056254 
+#> Run 35 stress 0.1868907 
+#> Run 36 stress 0.1965627 
+#> Run 37 stress 0.1908303 
+#> Run 38 stress 0.1917965 
+#> Run 39 stress 0.2007128 
+#> Run 40 stress 0.2171635 
+#> Run 41 stress 0.1901504 
+#> Run 42 stress 0.2096276 
+#> Run 43 stress 0.2052599 
+#> Run 44 stress 0.2004647 
+#> Run 45 stress 0.1991416 
+#> Run 46 stress 0.1919093 
+#> Run 47 stress 0.2162771 
+#> Run 48 stress 0.184877 
+#> ... New best solution
+#> ... Procrustes: rmse 0.01881288  max resid 0.1015829 
+#> Run 49 stress 0.2013058 
+#> Run 50 stress 0.1911624 
 #> *** No convergence -- monoMDS stopping criteria:
 #>     50: no. of iterations >= maxit
 ```
+
+IN an effort to get this to converge, we can pool the less common
+species into a “rare” pseudo-species. An alternative is to drop them
+entirely.
 
 ``` r
 zoopl_trim <- zoopl_community %>%
@@ -201,60 +211,45 @@ zoopl_trim <- zoopl_community %>%
   select(-c(Membranipora :  Bougainvillia)) 
 ```
 
+This also sometimes fails to converge, and sometimes does converge. I
+use `set.seed()` here just to ensure we come back with one of the ones
+that does converge.
+
 ``` r
+set.seed(54321)
 NMDS_trim <- metaMDS(zoopl_trim, autotransform = TRUE,
                         maxit = 100, trymax = 50)
 #> Square root transformation
 #> Wisconsin double standardization
-#> Run 0 stress 0.2045442 
-#> Run 1 stress 0.1984991 
+#> Run 0 stress 0.2048293 
+#> Run 1 stress 0.1954844 
 #> ... New best solution
-#> ... Procrustes: rmse 0.0841664  max resid 0.2702848 
-#> Run 2 stress 0.2131749 
-#> Run 3 stress 0.1951194 
+#> ... Procrustes: rmse 0.07661131  max resid 0.1965559 
+#> Run 2 stress 0.2211269 
+#> Run 3 stress 0.1954965 
+#> ... Procrustes: rmse 0.002886941  max resid 0.0118807 
+#> Run 4 stress 0.198231 
+#> Run 5 stress 0.2072736 
+#> Run 6 stress 0.2078279 
+#> Run 7 stress 0.1983644 
+#> Run 8 stress 0.198997 
+#> Run 9 stress 0.1989538 
+#> Run 10 stress 0.2041129 
+#> Run 11 stress 0.1952331 
 #> ... New best solution
-#> ... Procrustes: rmse 0.0460659  max resid 0.2999019 
-#> Run 4 stress 0.2004032 
-#> Run 5 stress 0.195801 
-#> Run 6 stress 0.2146679 
-#> Run 7 stress 0.1984139 
-#> Run 8 stress 0.1989955 
-#> Run 9 stress 0.1986281 
-#> Run 10 stress 0.220654 
-#> Run 11 stress 0.2006441 
-#> Run 12 stress 0.1983234 
-#> Run 13 stress 0.1949749 
+#> ... Procrustes: rmse 0.008627627  max resid 0.04235529 
+#> Run 12 stress 0.2164094 
+#> Run 13 stress 0.1952331 
 #> ... New best solution
-#> ... Procrustes: rmse 0.002789328  max resid 0.01362919 
-#> Run 14 stress 0.2007009 
-#> Run 15 stress 0.2004136 
-#> Run 16 stress 0.1952738 
-#> ... Procrustes: rmse 0.008102096  max resid 0.0395038 
-#> Run 17 stress 0.1983236 
-#> Run 18 stress 0.2045442 
-#> Run 19 stress 0.2134995 
-#> Run 20 stress 0.2004035 
-#> Run 21 stress 0.2013893 
-#> Run 22 stress 0.2036505 
-#> Run 23 stress 0.1983236 
-#> Run 24 stress 0.2046971 
-#> Run 25 stress 0.2193489 
-#> Run 26 stress 0.204544 
-#> Run 27 stress 0.2110045 
-#> Run 28 stress 0.2119909 
-#> Run 29 stress 0.1986547 
-#> Run 30 stress 0.2038887 
-#> Run 31 stress 0.2207281 
-#> Run 32 stress 0.1948434 
-#> ... New best solution
-#> ... Procrustes: rmse 0.00491867  max resid 0.02525003 
-#> Run 33 stress 0.2084269 
-#> Run 34 stress 0.1949747 
-#> ... Procrustes: rmse 0.004849637  max resid 0.02519422 
-#> Run 35 stress 0.194843 
-#> ... New best solution
-#> ... Procrustes: rmse 0.0002065284  max resid 0.001025216 
+#> ... Procrustes: rmse 0.0001160009  max resid 0.0005749188 
 #> ... Similar to previous best
+#> Run 14 stress 0.1982984 
+#> Run 15 stress 0.199219 
+#> Run 16 stress 0.2041276 
+#> Run 17 stress 0.1982394 
+#> Run 18 stress 0.2016003 
+#> Run 19 stress 0.2123235 
+#> Run 20 stress 0.219074 
 #> *** Solution reached
 ```
 
@@ -339,14 +334,13 @@ class(hull[[1]])
 #> [1] "matrix" "array"
 hull[[1]]
 #>         NMDS1       NMDS2
-#> 44  0.2853890 -0.32770762
-#> 15 -0.1195457 -0.68844360
-#> 29 -0.2575486 -0.60839865
-#> 2  -0.6229546 -0.39603693
-#> 1  -0.6317117 -0.08937461
-#> 33 -0.3344563  0.30310050
-#> 26  0.4733661  0.35032318
-#> 44  0.2853890 -0.32770762
+#> 44  0.2840132 -0.33101609
+#> 15 -0.1169403 -0.69146690
+#> 2  -0.6261503 -0.39936270
+#> 1  -0.6315484 -0.09161072
+#> 33 -0.3375338  0.30357377
+#> 26  0.4777405  0.35246918
+#> 44  0.2840132 -0.33101609
 ```
 
 It’s just an array containing the points of the vertexes of the
@@ -364,20 +358,20 @@ hullsdfs <- map(hull, as_tibble) # Creates a list of tibbles
 hulls_df <- hullsdfs %>%
   bind_rows(.id = 'Cluster')  # converts number in the list to a variable
 hulls_df
-#> # A tibble: 31 x 3
+#> # A tibble: 30 x 3
 #>    Cluster  NMDS1   NMDS2
 #>    <chr>    <dbl>   <dbl>
-#>  1 1        0.285 -0.328 
-#>  2 1       -0.120 -0.688 
-#>  3 1       -0.258 -0.608 
-#>  4 1       -0.623 -0.396 
-#>  5 1       -0.632 -0.0894
-#>  6 1       -0.334  0.303 
-#>  7 1        0.473  0.350 
-#>  8 1        0.285 -0.328 
-#>  9 2       -0.124  0.106 
-#> 10 2       -0.380  0.181 
-#> # ... with 21 more rows
+#>  1 1        0.284 -0.331 
+#>  2 1       -0.117 -0.691 
+#>  3 1       -0.626 -0.399 
+#>  4 1       -0.632 -0.0916
+#>  5 1       -0.338  0.304 
+#>  6 1        0.478  0.352 
+#>  7 1        0.284 -0.331 
+#>  8 2       -0.130  0.110 
+#>  9 2       -0.384  0.182 
+#> 10 2       -0.441  0.685 
+#> # ... with 20 more rows
 ```
 
 ## Plot Clusters and Convex Hulls

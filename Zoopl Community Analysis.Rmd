@@ -57,7 +57,7 @@ by adding the two Balanus entries together.  That needs to be confirmed.
 
 # Two rows of Balanus from one sample.
 ```{r}
-zoopl_community$count[18] <- 35 + 29
+zoopl_community$count[18] <- (35 + 29)/2
 zoopl_community <- zoopl_community[-19,]
 ```
 
@@ -84,12 +84,14 @@ zoopl_community
 
 
 ## Default 2-D NMDS
+This generally fails to converge.
 ```{r}
 NMDS_default <- metaMDS(zoopl_community[,-1], k = 2, autotransform = TRUE,
                         maxit = 50, trymax = 50)
 ```
 
-
+IN an effort to get this to converge, we can pool the less common species into a
+"rare" pseudo-species.  An alternative is to drop them entirely.
 ```{r}
 zoopl_trim <- zoopl_community %>%
   column_to_rownames(var = "new_id") %>%
@@ -99,8 +101,11 @@ zoopl_trim <- zoopl_community %>%
   select(-c(Membranipora :  Bougainvillia)) 
 ```
 
-
+This also sometimes fails to converge, and sometimes does converge.  I use
+`set.seed()` here just to ensure we come back with one of the ones that does
+converge.
 ```{r}
+set.seed(54321)
 NMDS_trim <- metaMDS(zoopl_trim, autotransform = TRUE,
                         maxit = 100, trymax = 50)
 ```
