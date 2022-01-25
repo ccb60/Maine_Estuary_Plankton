@@ -56,9 +56,6 @@ The layout of this Notebook proceeds as follows:
 
 4.  COnduct analyses of ACARTIA only, using GAM models.
 
-
-
-
 # Load Libraries
 ```{r}
 library(tidyverse)
