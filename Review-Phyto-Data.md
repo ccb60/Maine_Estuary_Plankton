@@ -2,10 +2,12 @@ Examining Bigelow Phytoplankton Data File
 ================
 
 -   [Data Tabs in the Excel File](#data-tabs-in-the-excel-file)
--   [Load Flowcam FCM Data](#load-flowcam-fcm-data)
-    -   [Data Groups](#data-groups)
-    -   [Flowcam data ABD](#flowcam-data-abd)
+-   [Load Flowcam Data](#load-flowcam-data)
+    -   [FCM Data](#fcm-data)
+        -   [Data Groups](#data-groups)
+    -   [ABD Data](#abd-data)
     -   [Compare Flowcam Data sets](#compare-flowcam-data-sets)
+        -   [Compare Variable Names](#compare-variable-names)
         -   [Compare Sample IDs](#compare-sample-ids)
         -   [Compare Total Algae Biomass](#compare-total-algae-biomass)
 -   [Load Collection Data](#load-collection-data)
@@ -22,13 +24,6 @@ Examining Bigelow Phytoplankton Data File
     Data](#c-n-data-and-stable-isotope-data)
     -   [Review of Delta\_N data](#review-of-delta_n-data)
 -   [Calculate Average Values](#calculate-average-values)
-    -   [Graphic Exploration of Site and
-        Date](#graphic-exploration-of-site-and-date)
-        -   [Delta N Data](#delta-n-data)
-        -   [Delta C Data](#delta-c-data)
-    -   [Quick Models](#quick-models)
-        -   [Delta N Model](#delta-n-model)
-        -   [Delta\_C Model](#delta_c-model)
 -   [Reflection of data contents.](#reflection-of-data-contents)
 
 <img
@@ -36,9 +31,9 @@ Examining Bigelow Phytoplankton Data File
     style="position:absolute;top:10px;right:50px;" />
 
 \#Introduction In this notebook, I am reviewing data in one of the two
-data files I was provided. Principally , this is to get familiar with
-the contents of the file, but it is also to check the relationship among
-tabs.
+data files I was provided. Principally, this is to get familiar with the
+contents of the file, but it is also to check the relationship among
+tabs and conduct initial data QA/QC.
 
 \#Load Libraries
 
@@ -83,7 +78,9 @@ fn <- 'SEANET_Phyto Data_Bigelow.xlsx'
 #> [11] "POC2"
 ```
 
-# Load Flowcam FCM Data
+# Load Flowcam Data
+
+## FCM Data
 
 ``` r
 flowcam_data_FCM <- read_excel(fn, sheet = "FCAM FCM", skip = 59) %>%
@@ -96,7 +93,7 @@ flowcam_data_FCM <- read_excel(fn, sheet = "FCAM FCM", skip = 59) %>%
   rename('Total_GT_20' = starts_with('Total_>'))
 ```
 
-## Data Groups
+### Data Groups
 
 Notice that not all groups are equivalent, so these should not be
 analyzed as one large group.
@@ -185,7 +182,7 @@ cor(log(flowcam_data_FCM[35:38]), method = 'spearman', use = 'pairwise')
 #> Total_Other_and_UID_FCM              1.00000000
 ```
 
-## Flowcam data ABD
+## ABD Data
 
 This is apparently based on a slightly different method for estimating
 biovolume. These SHOULD be highly correlated with the last set of
@@ -203,6 +200,12 @@ flowcam_data_ABD <- read_excel("SEANET_Phyto Data_Bigelow.xlsx",
   rename_with(.fn = ~gsub("\\.", "", .x)) %>%
   rename('Total_GT_20' = starts_with('Total_>'))
 ```
+
+## Compare Flowcam Data sets
+
+### Compare Variable Names
+
+They all match.
 
 ``` r
 cbind(names(flowcam_data_FCM), names(flowcam_data_ABD))
@@ -253,8 +256,6 @@ cbind(names(flowcam_data_FCM), names(flowcam_data_ABD))
 #> [44,] "Comments"                        "Comments"
 ```
 
-## Compare Flowcam Data sets
-
 ### Compare Sample IDs
 
 We note two samples in the ABD tab that lack sample IDs, although all
@@ -300,7 +301,7 @@ flowcam_data_ABD %>%
 
 <img src="Review-Phyto-Data_files/figure-gfm/unnamed-chunk-12-1.png" style="display: block; margin: auto;" />
 
-So, the two metrics provide similar estimates of total biomass GT 20,
+So, the two metrics provide correlated estimates of total biomass GT 20,
 with FCM usually estimating slightly larger totals. I suspect we can
 treat these two tabs as nearly equivalent. I will leave it up to Kevin
 to decide which to use. For now, I will work with the FCM tab only.
@@ -310,7 +311,7 @@ to decide which to use. For now, I will work with the FCM tab only.
 ``` r
 collection_data <- read_excel("SEANET_Phyto Data_Bigelow.xlsx", 
     sheet = "COLLECTION", col_types = c("date", 
-        "date", "text", "numeric", "text", 
+        "date", "text", "numeric", "numeric", 
         "text", "text", "text", "date", "text", 
         "numeric", "numeric", "text", "text", 
         "text", "text", "text", "text", "numeric", 
@@ -318,14 +319,23 @@ collection_data <- read_excel("SEANET_Phyto Data_Bigelow.xlsx",
     skip = 20, na = '-999') %>%
   rename_with(.fn = ~sub(" \\(.*", "", .x) ) %>%
   rename_with(.fn = ~gsub(" ", "_", .x))
+#> Warning in read_fun(path = enc2native(normalizePath(path)), sheet_i = sheet, :
+#> Expecting numeric in E38 / R38C5: got '7 (secchi on bottom'
+#> Warning in read_fun(path = enc2native(normalizePath(path)), sheet_i = sheet, :
+#> Expecting numeric in E39 / R39C5: got '8 (secchi on bottom)'
 ```
 
 That does not properly import the time of sample collection, but that’s
-not worth fixing at this level of review.
+not worth fixing for now.
+
+Secchi Depth data has a couple of records on bottom, and a couple that
+look like they were wrongly measured in feet? Anyway, the values ( over
+25) are unlikely in the extreme.
 
 The last four columns here are apparently copied from the PICO-NANO tab.
 However, it looks like the copied data did not correctly account for the
-inconsistent labeling on that tab.
+inconsistent labeling on that tab. I do not trust alignment with the
+sample IDs. I would rather regenerate the match myself later.
 
 # Data on Picoplankton and Nanoplankton
 
@@ -350,11 +360,12 @@ pico_data$Sample_ID[duplicated( pico_data$Sample_ID)]
 #> [1] "SNT_2016-08-02_UNE3"  "SNT_2016-08-30_LOBO1"
 ```
 
-It’s possible the first is a mis-labeling, since the duplicate is
-adjacent to the missing value. THe second, however, can not be explained
-away so readily.
+It’s possible the first is a mis-labeling, since a duplicate is adjacent
+to the missing value. The second, however, can not be explained away so
+readily.
 
-Let’s check sample alignment
+Let’s check sample alignment. it suggests the two Tabs are inconsistent.
+I need to know which is correct before I can continue.
 
 ``` r
 collection_data %>%
@@ -381,7 +392,8 @@ collection_data %>%
 # Data on Chlorophyll and Phaeophytin
 
 We drop the “pre calculated” means and standard deviations for the time
-being.
+being. they are simple to recalculate in R, and that way I have full
+documentation of methods and assumptions.
 
 ``` r
 chl_data <-   read_excel("SEANET_Phyto Data_Bigelow.xlsx", 
@@ -397,8 +409,12 @@ chl_data <-   read_excel("SEANET_Phyto Data_Bigelow.xlsx",
 # Summary data on Chlorophyll and Phaephytin
 
 The rows of data with just the averages appear to have been copied to
-the next Tab in the spreadsheet. This is likely to be convenient for
-comparison with other environmental variables.
+the next Tab in the spreadsheet. This is likely as a convenience for
+combining with other environmental variables.
+
+The data import triggers many warnings about coercing numbers to dates,
+but that is because for some reason, R is not importing these dates
+quite correctly.
 
 ``` r
 chl_avg_data <- read_excel("SEANET_Phyto Data_Bigelow.xlsx", 
@@ -597,17 +613,17 @@ rm(DON_data)
 
 # C N Data and Stable Isotope Data
 
-this is found in two different Tabs. It appears these are some replicate
+This is found in two different Tabs. It appears these are some replicate
 analyses here, labeled in confusing ways….
 
-One the Elemental N and C values, they are labeled as “not blank
-corrected”. I am not sure whether they should be blank corrected, and if
-so, how to do so correctly. MY tendency would be to “correct” by the man
-value of the blanks. This would have a small effect on elemental carbon,
-but a sizable effect on elemental nitrogen.
+The Elemental N and C values are labeled as “not blank corrected”. I am
+not sure whether they should be blank corrected, and if so, how to do so
+correctly. My tendency would be to “correct” by the mean value of the
+blanks. This would have a small effect on elemental carbon, but a
+sizable effect on elemental nitrogen.
 
-Because of these uncertainties, I focus only on the stable isotope
-figures.
+But because of these uncertainties, I focus only on the stable isotope
+values.
 
 ``` r
 POC1_data <- read_excel("SEANET_Phyto Data_Bigelow.xlsx", 
@@ -652,8 +668,8 @@ ggplot(POC_data, aes(Sample_ID, Delta_N)) +
 
 <img src="Review-Phyto-Data_files/figure-gfm/unnamed-chunk-27-1.png" style="display: block; margin: auto;" />
 
-So, looking at that, we see the two outliers, which were flagged in the
-analytic results. We delete them.
+So, looking at that, we see two outliers, both of which were flagged in
+the analytic results. We delete them.
 
 ``` r
 POC_data <- POC_data %>%
@@ -673,106 +689,11 @@ POC_data_sum <- POC_data %>%
             Deta_C_n  =    sum(! is.na(Delta_C)))
 ```
 
-WE have only a single measurement at most samples, yet the standard
+We have only a single measurement of most samples, yet the standard
 errors are fairly large for those samples where we **do** have
-replicates. Careful analysis would estimate standard errors based on a
-hierarchical model for those samples with only a single analysis.
-
-## Graphic Exploration of Site and Date
-
-### Delta N Data
-
-``` r
-POC_data_test <- POC_data %>%
-  select(-Comments) %>%
-  mutate(samp_date = as.Date(substr(Sample_ID, 1,10), format = '%Y-%m-%d'),
-         samp_loc  = substr(Sample_ID, 12, nchar(Sample_ID)),
-         samp_loc = factor(samp_loc),
-         date_factor = factor(samp_date))
-```
-
-``` r
-ggplot(POC_data_test, aes(samp_loc, Delta_N)) +
-  geom_point(aes(color = date_factor)) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.2))
-#> Warning: Removed 2 rows containing missing values (geom_point).
-```
-
-<img src="Review-Phyto-Data_files/figure-gfm/unnamed-chunk-31-1.png" style="display: block; margin: auto;" />
-
-### Delta C Data
-
-``` r
-ggplot(POC_data_test, aes(samp_loc, Delta_C)) +
-  geom_point(aes(color = date_factor)) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.2))
-```
-
-<img src="Review-Phyto-Data_files/figure-gfm/unnamed-chunk-32-1.png" style="display: block; margin: auto;" />
-
-So, looking at Carbon, it looks like midsummer samples tend to be low
-Delta C Except at the Mooring location.
-
-## Quick Models
-
-### Delta N Model
-
-``` r
-delta_N_lm <- lm(Delta_N ~ samp_loc * date_factor,  data = POC_data_test)
-anova(delta_N_lm)
-#> Analysis of Variance Table
-#> 
-#> Response: Delta_N
-#>                      Df Sum Sq Mean Sq F value   Pr(>F)    
-#> samp_loc              3 384.03 128.010 24.7683 3.41e-05 ***
-#> date_factor          12 268.89  22.407  4.3356 0.010560 *  
-#> samp_loc:date_factor 31 819.74  26.443  5.1165 0.003281 ** 
-#> Residuals            11  56.85   5.168                     
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-```
-
-``` r
-emmip(delta_N_lm, samp_loc ~ date_factor)
-#> Warning: Removed 5 rows containing missing values (geom_point).
-#> Warning: Removed 3 row(s) containing missing values (geom_path).
-```
-
-<img src="Review-Phyto-Data_files/figure-gfm/unnamed-chunk-34-1.png" style="display: block; margin: auto;" />
-
-So, what jumps out is the UNE site, in the spring, is doing something
-very different. THe UNE site is on the Saco, so likely dominated by
-freshwater runoff in the spring. I tend to believe just about everything
-else is just noise, but it is hard to tell from this plot alone.
-
-### Delta\_C Model
-
-``` r
-delta_C_lm <- lm(Delta_C ~ samp_loc * date_factor,  data = POC_data_test)
-anova(delta_C_lm)
-#> Analysis of Variance Table
-#> 
-#> Response: Delta_C
-#>                      Df  Sum Sq Mean Sq F value    Pr(>F)    
-#> samp_loc              3  16.697  5.5657  9.7369  0.001232 ** 
-#> date_factor          12 134.129 11.1775 19.5544 2.315e-06 ***
-#> samp_loc:date_factor 31  72.544  2.3401  4.0940  0.004803 ** 
-#> Residuals            13   7.431  0.5716                      
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-```
-
-``` r
-emmip(delta_C_lm, samp_loc ~ date_factor)
-#> Warning: Removed 5 rows containing missing values (geom_point).
-#> Warning: Removed 3 row(s) containing missing values (geom_path).
-```
-
-<img src="Review-Phyto-Data_files/figure-gfm/unnamed-chunk-36-1.png" style="display: block; margin: auto;" />
-
-So here we see a stronger seasonal pattern at all sites, again with UNE
-doing something slightly different, and possibly the Mooring also doing
-something.
+replicates. Careful analysis would estimate standard errors even for
+those samples with only a single analysis based on the error in the
+samples for which we have multiple laboratory results.
 
 # Reflection of data contents.
 
@@ -784,10 +705,11 @@ something.
     -   `nutrients_data`  
     -   `pmax_data`
 
-3.  `pico_data` has 78 rows, because of exactly one replicate sample
+3.  `pico_data` has 78 rows, because of exactly one replicate (?) sample
 
 4.  We have only 74 rows in the flowcam community data
 
-5.  The two different community analysis methods appear correlated.
+5.  The two different community analysis methods appear highly
+    correlated.
 
 6.  The POC data is more selective, with only 47 unique sample IDs.
